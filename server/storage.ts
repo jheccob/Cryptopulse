@@ -19,6 +19,7 @@ export interface IStorage {
   createSignal(signal: InsertSignal): Promise<Signal>;
   getRecentSignals(limit?: number): Promise<Signal[]>;
   getSignalsByTimeRange(startTime: Date, endTime: Date): Promise<Signal[]>;
+  updateSignal(id: string, updates: Partial<Signal>): Promise<Signal | undefined>;
   
   // Market Data
   insertMarketData(data: InsertMarketData[]): Promise<MarketData[]>;
@@ -164,6 +165,15 @@ export class MemStorage implements IStorage {
   async deleteConfiguration(id: string): Promise<boolean> {
     return this.configurations.delete(id);
   }
+
+  async updateSignal(id: string, updates: Partial<Signal>): Promise<Signal | undefined> {
+    const signal = this.signals.get(id);
+    if (!signal) return undefined;
+    
+    const updatedSignal = { ...signal, ...updates };
+    this.signals.set(id, updatedSignal);
+    return updatedSignal;
+  }
 }
 
 export class DatabaseStorage implements IStorage {
@@ -274,6 +284,16 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return result.length > 0;
+  }
+
+  async updateSignal(id: string, updates: Partial<Signal>): Promise<Signal | undefined> {
+    const [updatedSignal] = await db
+      .update(signals)
+      .set(updates)
+      .where(eq(signals.id, id))
+      .returning();
+    
+    return updatedSignal || undefined;
   }
 }
 

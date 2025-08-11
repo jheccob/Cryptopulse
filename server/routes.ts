@@ -286,6 +286,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Send test signal to Telegram
+  app.post("/api/telegram/send-signal", async (req, res) => {
+    try {
+      // Get the most recent signal from database
+      const recentSignals = await storage.getRecentSignals(1);
+      if (recentSignals.length === 0) {
+        return res.status(404).json({ message: "No signals found" });
+      }
+
+      const signal = recentSignals[0];
+      
+      // Send signal to Telegram
+      const sent = await telegramService.sendSignalAlert({
+        type: signal.type,
+        symbol: signal.symbol,
+        price: signal.price,
+        rsi: signal.rsi,
+        timestamp: new Date(signal.timestamp)
+      });
+
+      if (sent) {
+        // Update signal as sent in database
+        await storage.updateSignal(signal.id, { telegramSent: true });
+        res.json({ message: "Signal sent to Telegram successfully", signal });
+      } else {
+        res.status(500).json({ message: "Failed to send signal to Telegram" });
+      }
+    } catch (error) {
+      res.status(500).json({ message: "Failed to send signal", error: (error as Error).message });
+    }
+  });
+
   // Periodic broadcasts for real-time updates
   setInterval(() => {
     const status = tradingBotService.getStatus();
