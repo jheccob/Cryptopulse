@@ -1,4 +1,4 @@
-import ccxt from 'ccxt';
+import * as ccxt from 'ccxt';
 import { storage } from '../storage';
 import { type InsertMarketData } from '@shared/schema';
 

@@ -57,12 +57,12 @@ export default function Dashboard() {
         });
       } else if (message.type === 'MARKET_DATA') {
         setRealTimeData(prev => ({
-          ...prev,
           currentPrice: message.data.close,
           rsi: message.data.rsi || 0,
           macd: message.data.macd || 0,
           macdSignal: message.data.macdSignal || 0,
           volume: message.data.volume || 0,
+          signals: prev?.signals || [],
         }));
       }
     },

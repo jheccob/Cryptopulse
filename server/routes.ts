@@ -3,7 +3,7 @@ import { createServer, type Server } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { tradingBotService } from "./services/tradingBot";
-import { marketDataService } from "./services/marketData";
+import { demoMarketDataService } from "./services/demoMarketData";
 import { telegramService } from "./services/telegram";
 import { insertConfigurationSchema, updateConfigurationSchema, type WebSocketMessage } from "@shared/schema";
 
@@ -69,7 +69,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bot/start", async (req, res) => {
     try {
       await tradingBotService.start();
-      await marketDataService.start();
+      await demoMarketDataService.start();
       
       const status = tradingBotService.getStatus();
       broadcast({
@@ -88,7 +88,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/bot/stop", async (req, res) => {
     try {
       tradingBotService.stop();
-      marketDataService.stop();
+      demoMarketDataService.stop();
       
       const status = tradingBotService.getStatus();
       broadcast({
@@ -107,7 +107,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/signals", async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 10;
-      const signals = await storage.getRecentSignals(limit);
+      let signals = await storage.getRecentSignals(limit);
+      
+      // Generate demo signals if none exist
+      if (signals.length === 0) {
+        const demoSignals = [
+          {
+            symbol: 'XLM/USDT',
+            type: 'BUY',
+            price: 0.11583,
+            rsi: 35.2,
+            macd: 0.00012,
+            macdSignal: 0.00008,
+            volume: 125000,
+          },
+          {
+            symbol: 'XLM/USDT', 
+            type: 'SELL',
+            price: 0.11601,
+            rsi: 68.7,
+            macd: -0.00015,
+            macdSignal: 0.00002,
+            volume: 98000,
+          },
+          {
+            symbol: 'XLM/USDT',
+            type: 'BUY', 
+            price: 0.11567,
+            rsi: 28.9,
+            macd: 0.00018,
+            macdSignal: 0.00011,
+            volume: 156000,
+          }
+        ];
+        
+        for (let i = 0; i < demoSignals.length; i++) {
+          const signalTime = new Date(Date.now() - (i + 1) * 3600000); // 1 hour apart
+          await storage.createSignal({
+            ...demoSignals[i],
+          });
+        }
+        
+        signals = await storage.getRecentSignals(limit);
+      }
+      
       res.json(signals);
     } catch (error) {
       res.status(500).json({ message: "Failed to get signals" });
@@ -135,7 +178,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { symbol, timeframe } = req.params;
       const limit = parseInt(req.query.limit as string) || 100;
       
-      const data = await storage.getLatestMarketData(symbol, timeframe, limit);
+      let data = await storage.getLatestMarketData(symbol, timeframe, limit);
+      
+      // If no data exists, generate demo data
+      if (data.length === 0) {
+        const config = await storage.getActiveConfiguration();
+        if (config) {
+          const demoData = await demoMarketDataService.processMarketData(symbol, timeframe, config);
+          await storage.insertMarketData(demoData);
+          data = await storage.getLatestMarketData(symbol, timeframe, limit);
+        }
+      }
+      
       res.json(data);
     } catch (error) {
       res.status(500).json({ message: "Failed to get market data" });

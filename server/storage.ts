@@ -50,8 +50,8 @@ export class MemStorage implements IStorage {
       volumePeriod: 20,
       alertCooldown: 5,
       telegramEnabled: true,
-      telegramToken: process.env.TELEGRAM_TOKEN || '',
-      telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+      telegramToken: process.env.TELEGRAM_TOKEN || null,
+      telegramChatId: process.env.TELEGRAM_CHAT_ID || null,
       isActive: true,
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -89,7 +89,14 @@ export class MemStorage implements IStorage {
     
     for (const item of data) {
       const id = randomUUID();
-      const marketDataItem: MarketData = { ...item, id };
+      const marketDataItem: MarketData = { 
+        ...item, 
+        id,
+        rsi: item.rsi ?? null,
+        macd: item.macd ?? null,
+        macdSignal: item.macdSignal ?? null,
+        macdHistogram: item.macdHistogram ?? null,
+      };
       this.marketData.set(id, marketDataItem);
       insertedData.push(marketDataItem);
     }
@@ -112,6 +119,20 @@ export class MemStorage implements IStorage {
   async createConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
     const id = randomUUID();
     const config: Configuration = {
+      symbol: insertConfig.symbol || 'XLM/USDT',
+      timeframe: insertConfig.timeframe || '5m',
+      macdFast: insertConfig.macdFast || 8,
+      macdSlow: insertConfig.macdSlow || 17,
+      macdSignal: insertConfig.macdSignal || 9,
+      rsiPeriod: insertConfig.rsiPeriod || 14,
+      rsiLower: insertConfig.rsiLower || 20,
+      rsiUpper: insertConfig.rsiUpper || 80,
+      volumePeriod: insertConfig.volumePeriod || 20,
+      alertCooldown: insertConfig.alertCooldown || 5,
+      telegramEnabled: insertConfig.telegramEnabled ?? true,
+      telegramToken: insertConfig.telegramToken || null,
+      telegramChatId: insertConfig.telegramChatId || null,
+      isActive: insertConfig.isActive ?? true,
       ...insertConfig,
       id,
       createdAt: new Date(),

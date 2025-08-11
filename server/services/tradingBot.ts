@@ -1,5 +1,5 @@
 import { storage } from '../storage';
-import { marketDataService } from './marketData';
+import { demoMarketDataService } from './demoMarketData';
 import { telegramService } from './telegram';
 import { type InsertSignal, type BotStatus, type Configuration } from '@shared/schema';
 
@@ -88,7 +88,7 @@ export class TradingBotService {
       }
 
       // Get latest market data
-      const latestData = await marketDataService.getLatestData(
+      const latestData = await demoMarketDataService.getLatestData(
         this.currentConfig.symbol,
         this.currentConfig.timeframe
       );
