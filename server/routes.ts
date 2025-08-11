@@ -54,6 +54,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   };
 
+  // Connect the broadcast function to the trading bot for real-time updates
+  tradingBotService.setBroadcastFunction(broadcast);
+
   // API Routes
 
   // Get bot status
@@ -368,6 +371,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ 
         status: "error",
         message: "Failed to process market data with indicators", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Real-time market data endpoint
+  app.get('/api/realtime/:symbol', async (req, res) => {
+    try {
+      const { symbol } = req.params;
+      const coinbaseSymbol = symbol.replace('/', '-');
+      
+      const config = await storage.getActiveConfiguration();
+      if (!config) {
+        return res.status(404).json({ message: "No active configuration found" });
+      }
+
+      const marketDataArray = await marketDataService.processMarketData(
+        coinbaseSymbol, 
+        config.timeframe, 
+        config
+      );
+      
+      if (marketDataArray.length === 0) {
+        return res.status(404).json({ message: "No market data available" });
+      }
+
+      const latest = marketDataArray[marketDataArray.length - 1];
+      
+      res.json({
+        symbol: latest.symbol,
+        price: latest.close,
+        rsi: latest.rsi,
+        macd: latest.macd,
+        macdSignal: latest.macdSignal,
+        volume: latest.volume,
+        timestamp: latest.timestamp,
+        exchange: 'Coinbase',
+        timeframe: config.timeframe
+      });
+      
+    } catch (error) {
+      console.error('Error fetching real-time data:', error);
+      res.status(500).json({ 
+        message: "Failed to fetch real-time data", 
         error: (error as Error).message 
       });
     }

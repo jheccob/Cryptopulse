@@ -37,7 +37,7 @@ export default function Dashboard() {
     macd: number;
     macdSignal: number;
     volume: number;
-    signals: Signal[];
+    lastUpdate: Date;
   } | null>(null);
 
   const { toast } = useToast();
@@ -56,14 +56,14 @@ export default function Dashboard() {
           variant: message.data.type === 'BUY' ? "default" : "destructive",
         });
       } else if (message.type === 'MARKET_DATA') {
-        setRealTimeData(prev => ({
+        setRealTimeData({
           currentPrice: message.data.close,
           rsi: message.data.rsi || 0,
           macd: message.data.macd || 0,
           macdSignal: message.data.macdSignal || 0,
           volume: message.data.volume || 0,
-          signals: prev?.signals || [],
-        }));
+          lastUpdate: new Date(),
+        });
       }
     },
   });
@@ -88,6 +88,27 @@ export default function Dashboard() {
     enabled: !!config,
     refetchInterval: 60000,
   });
+
+  // Real-time data query - TanStack Query v5 syntax
+  const { data: realtimeData } = useQuery({
+    queryKey: ['/api/realtime', config?.symbol],
+    enabled: !!config,
+    refetchInterval: 10000, // Update every 10 seconds
+  });
+
+  // Update real-time data when query succeeds
+  useEffect(() => {
+    if (realtimeData) {
+      setRealTimeData({
+        currentPrice: (realtimeData as any).price,
+        rsi: (realtimeData as any).rsi || 0,
+        macd: (realtimeData as any).macd || 0,
+        macdSignal: (realtimeData as any).macdSignal || 0,
+        volume: (realtimeData as any).volume || 0,
+        lastUpdate: new Date(),
+      });
+    }
+  }, [realtimeData]);
 
   // Mutations
   const startBotMutation = useMutation({

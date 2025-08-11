@@ -10,9 +10,15 @@ export class TradingBotService {
   private startTime = new Date();
   private intervalId: NodeJS.Timeout | null = null;
   private currentConfig: Configuration | null = null;
+  private broadcastFunction: ((message: any) => void) | null = null;
 
   constructor() {
     this.loadConfiguration();
+  }
+
+  // Method to set the broadcast function for WebSocket communication
+  setBroadcastFunction(broadcastFn: (message: any) => void): void {
+    this.broadcastFunction = broadcastFn;
   }
 
   private async loadConfiguration() {
@@ -38,10 +44,10 @@ export class TradingBotService {
     
     console.log(`Trading bot started for ${this.currentConfig.symbol} on ${this.currentConfig.timeframe}`);
     
-    // Start the monitoring loop
+    // Start the monitoring loop - check every 30 seconds for faster signal detection
     this.intervalId = setInterval(() => {
       this.checkSignals().catch(console.error);
-    }, 60000); // Check every minute
+    }, 30000); // Check every 30 seconds
 
     // Initial check
     await this.checkSignals();
@@ -93,8 +99,29 @@ export class TradingBotService {
       try {
         // Convert XLM/USDT to XLM-USD for Coinbase
         const coinbaseSymbol = this.currentConfig.symbol.replace('/', '-');
-        latestData = await marketDataService.getLatestData(coinbaseSymbol, this.currentConfig.timeframe);
-        console.log('Using real Coinbase market data');
+        
+        // Get market data with indicators
+        const marketDataArray = await marketDataService.processMarketData(
+          coinbaseSymbol, 
+          this.currentConfig.timeframe, 
+          this.currentConfig
+        );
+        
+        if (marketDataArray.length > 0) {
+          latestData = marketDataArray[marketDataArray.length - 1];
+          console.log('Using real Coinbase market data');
+          
+          // Broadcast real-time data via WebSocket if available
+          if (this.broadcastFunction) {
+            this.broadcastFunction({
+              type: 'MARKET_DATA',
+              data: latestData,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        } else {
+          throw new Error('No market data available');
+        }
       } catch (error) {
         console.log('Failed to get real data, using demo data:', error);
         latestData = await demoMarketDataService.getLatestData(
@@ -190,6 +217,15 @@ export class TradingBotService {
       const signal = await storage.createSignal(signalData);
       
       console.log(`🚨 NOVO SINAL: ${signal.type} ${signal.symbol} por $${signal.price.toFixed(5)} | RSI: ${signal.rsi.toFixed(1)}`);
+
+      // Also broadcast signal via WebSocket for real-time dashboard updates
+      if (this.broadcastFunction) {
+        this.broadcastFunction({
+          type: 'SIGNAL',
+          data: signal,
+          timestamp: new Date().toISOString(),
+        });
+      }
       
       // Always try to send to Telegram using environment variables
       const telegramToken = process.env.TELEGRAM_TOKEN;

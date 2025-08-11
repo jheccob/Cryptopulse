@@ -1,10 +1,10 @@
 # Overview
 
-This is a cryptocurrency trading bot application that provides automated signal detection and monitoring for trading pairs (specifically XLM/USDT). The system combines technical analysis indicators (MACD, RSI, volume analysis) with real-time market data to generate buy/sell signals and deliver notifications via Telegram integration.
+This is a cryptocurrency trading bot application that provides automated signal detection and monitoring for trading pairs (specifically XLM/USD). The system combines technical analysis indicators (MACD, RSI, volume analysis) with real-time market data to generate buy/sell signals and deliver notifications via Telegram integration.
 
 The application features a modern React-based dashboard for real-time monitoring, configuration management, and bot control, backed by an Express.js server with WebSocket support for live updates. The system is designed as a full-stack trading assistant with comprehensive market analysis capabilities.
 
-**Current Status (August 2025)**: The application is fully functional with PostgreSQL database integration. The trading bot successfully processes market data, generates signals, and stores them persistently in the database. The system now supports real data persistence with proper database storage for all signals, market data, and configurations.
+**Current Status (August 11, 2025)**: The application is fully functional with PostgreSQL database integration and Coinbase API. The trading bot successfully processes real-time market data from Coinbase, generates signals every 30 seconds, and automatically sends them to Telegram. The dashboard displays live price, RSI, and MACD data with WebSocket updates. All signals are persistently stored in the database with automatic Telegram delivery confirmation.
 
 # User Preferences
 
@@ -42,10 +42,11 @@ Preferred communication style: Simple, everyday language.
 - **Configuration Protection**: Environment-based sensitive data management
 
 ## External Service Integrations
-- **Cryptocurrency Exchange**: Binance API via CCXT library for market data and OHLCV fetching
-- **Notification Service**: Telegram Bot API for signal alerts and notifications
+- **Cryptocurrency Exchange**: Coinbase API via CCXT library for real-time market data and OHLCV fetching (switched from Binance for better reliability)
+- **Notification Service**: Telegram Bot API for automatic signal alerts and notifications with detailed technical indicators
 - **Chart Visualization**: TradingView embedded widgets for professional trading charts
 - **Development Tools**: Replit-specific plugins for development environment integration
+- **Real-time Updates**: WebSocket broadcasting for live dashboard updates every 30 seconds
 
 ## Key Design Patterns
 - **Service Layer Pattern**: Separated business logic into distinct services (TradingBot, MarketData, Telegram)
