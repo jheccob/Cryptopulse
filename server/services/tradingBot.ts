@@ -46,10 +46,12 @@ export class TradingBotService {
     
     // Start the monitoring loop - check every 30 seconds for faster signal detection
     this.intervalId = setInterval(() => {
+      console.log('🔄 Running signal check...');
       this.checkSignals().catch(console.error);
     }, 30000); // Check every 30 seconds
 
     // Initial check
+    console.log('🚀 Running initial signal check...');
     await this.checkSignals();
   }
 
@@ -135,23 +137,17 @@ export class TradingBotService {
         return;
       }
 
-      // Get previous data for MACD crossover detection
-      const recentData = await storage.getLatestMarketData(
-        this.currentConfig.symbol,
-        this.currentConfig.timeframe,
-        2
-      );
+      // Since we're getting fresh data, let's analyze based on the current data
+      // and use a more aggressive signal detection approach
+      const currentPrice = latestData.close;
+      const currentRSI = latestData.rsi!;
+      const currentMACD = latestData.macd!;
+      const currentMACDSignal = latestData.macdSignal!;
 
-      if (recentData.length < 2) {
-        console.log('Need at least 2 data points for signal analysis');
-        return;
-      }
+      console.log(`Current data: Price=${currentPrice}, RSI=${currentRSI.toFixed(1)}, MACD=${currentMACD.toFixed(6)}, Signal=${currentMACDSignal.toFixed(6)}`);
 
-      const current = recentData[0];
-      const previous = recentData[1];
-
-      // Check for signal conditions
-      const signal = this.analyzeSignal(current, previous, this.currentConfig);
+      // Check for signal conditions with more aggressive thresholds
+      const signal = this.analyzeSignalRealTime(latestData, this.currentConfig);
       
       if (signal) {
         await this.processSignal(signal);
@@ -162,31 +158,43 @@ export class TradingBotService {
     }
   }
 
-  private analyzeSignal(current: any, previous: any, config: Configuration): InsertSignal | null {
-    const { rsiLower, rsiUpper, volumePeriod } = config;
-
-    // MACD crossover detection
-    const macdCrossUp = (previous.macd! < previous.macdSignal!) && (current.macd! > current.macdSignal!);
-    const macdCrossDown = (previous.macd! > previous.macdSignal!) && (current.macd! < current.macdSignal!);
-
-    // RSI and volume conditions
-    const rsiOk = current.rsi! > rsiLower && current.rsi! < rsiUpper;
+  private analyzeSignalRealTime(current: any, config: Configuration): InsertSignal | null {
+    const { rsiLower, rsiUpper } = config;
     
-    // For volume check, we'd need volume MA - simplified for now
-    const volOk = current.volume > 0; // Simplified volume check
-
-    if (!rsiOk || !volOk) return null;
-
     // Check cooldown period
     if (this.lastAlertTime) {
       const timeSinceLastAlert = Date.now() - this.lastAlertTime.getTime();
       const cooldownMs = config.alertCooldown * 60 * 1000; // Convert minutes to ms
       if (timeSinceLastAlert < cooldownMs) {
+        console.log(`Cooldown active: ${Math.floor((cooldownMs - timeSinceLastAlert) / 1000)}s remaining`);
         return null;
       }
     }
 
-    if (macdCrossUp) {
+    const currentRSI = current.rsi!;
+    const currentMACD = current.macd!;
+    const currentMACDSignal = current.macdSignal!;
+
+    // More aggressive signal detection
+    // BUY signals: RSI oversold or MACD above signal line
+    const buyConditions = [
+      currentRSI <= rsiLower + 10, // RSI oversold or near oversold
+      currentMACD > currentMACDSignal && currentMACD > -0.001, // MACD bullish
+    ];
+
+    // SELL signals: RSI overbought or MACD below signal line  
+    const sellConditions = [
+      currentRSI >= rsiUpper - 10, // RSI overbought or near overbought
+      currentMACD < currentMACDSignal && currentMACD < 0.001, // MACD bearish
+    ];
+
+    const buyScore = buyConditions.filter(Boolean).length;
+    const sellScore = sellConditions.filter(Boolean).length;
+
+    console.log(`Signal analysis: BUY score=${buyScore}/2, SELL score=${sellScore}/2`);
+
+    if (buyScore >= 1) { // At least 1 buy condition
+      console.log(`🟢 BUY signal detected! RSI=${currentRSI.toFixed(1)}, MACD=${currentMACD > currentMACDSignal ? 'bullish' : 'bearish'}`);
       return {
         symbol: current.symbol,
         type: 'BUY',
@@ -196,7 +204,8 @@ export class TradingBotService {
         macdSignal: current.macdSignal!,
         volume: current.volume,
       };
-    } else if (macdCrossDown) {
+    } else if (sellScore >= 1) { // At least 1 sell condition
+      console.log(`🔴 SELL signal detected! RSI=${currentRSI.toFixed(1)}, MACD=${currentMACD < currentMACDSignal ? 'bearish' : 'bullish'}`);
       return {
         symbol: current.symbol,
         type: 'SELL',
@@ -208,6 +217,7 @@ export class TradingBotService {
       };
     }
 
+    console.log('No signal conditions met');
     return null;
   }
 
