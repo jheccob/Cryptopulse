@@ -5,9 +5,14 @@ import {
   type InsertMarketData,
   type Configuration,
   type InsertConfiguration,
-  type UpdateConfiguration 
+  type UpdateConfiguration,
+  signals,
+  marketData,
+  configurations
 } from "@shared/schema";
 import { randomUUID } from "crypto";
+import { db } from "./db";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 
 export interface IStorage {
   // Signals
@@ -161,4 +166,115 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+export class DatabaseStorage implements IStorage {
+  async createSignal(insertSignal: InsertSignal): Promise<Signal> {
+    const [signal] = await db
+      .insert(signals)
+      .values(insertSignal)
+      .returning();
+    return signal;
+  }
+
+  async getRecentSignals(limit = 10): Promise<Signal[]> {
+    return await db
+      .select()
+      .from(signals)
+      .orderBy(desc(signals.timestamp))
+      .limit(limit);
+  }
+
+  async getSignalsByTimeRange(startTime: Date, endTime: Date): Promise<Signal[]> {
+    return await db
+      .select()
+      .from(signals)
+      .where(
+        and(
+          gte(signals.timestamp, startTime),
+          lte(signals.timestamp, endTime)
+        )
+      )
+      .orderBy(desc(signals.timestamp));
+  }
+
+  async insertMarketData(data: InsertMarketData[]): Promise<MarketData[]> {
+    return await db
+      .insert(marketData)
+      .values(data)
+      .returning();
+  }
+
+  async getLatestMarketData(symbol: string, timeframe: string, limit = 100): Promise<MarketData[]> {
+    return await db
+      .select()
+      .from(marketData)
+      .where(
+        and(
+          eq(marketData.symbol, symbol),
+          eq(marketData.timeframe, timeframe)
+        )
+      )
+      .orderBy(desc(marketData.timestamp))
+      .limit(limit);
+  }
+
+  async getActiveConfiguration(): Promise<Configuration | undefined> {
+    const [config] = await db
+      .select()
+      .from(configurations)
+      .where(eq(configurations.isActive, true))
+      .limit(1);
+    
+    // Create default configuration if none exists
+    if (!config) {
+      const defaultConfig: InsertConfiguration = {
+        symbol: 'XLM/USDT',
+        timeframe: '5m',
+        macdFast: 8,
+        macdSlow: 17,
+        macdSignal: 9,
+        rsiPeriod: 14,
+        rsiLower: 20,
+        rsiUpper: 80,
+        volumePeriod: 20,
+        alertCooldown: 5,
+        telegramEnabled: true,
+        telegramToken: process.env.TELEGRAM_TOKEN || null,
+        telegramChatId: process.env.TELEGRAM_CHAT_ID || null,
+        isActive: true,
+      };
+      
+      return await this.createConfiguration(defaultConfig);
+    }
+    
+    return config;
+  }
+
+  async createConfiguration(insertConfig: InsertConfiguration): Promise<Configuration> {
+    const [config] = await db
+      .insert(configurations)
+      .values(insertConfig)
+      .returning();
+    return config;
+  }
+
+  async updateConfiguration(id: string, updates: UpdateConfiguration): Promise<Configuration | undefined> {
+    const [updatedConfig] = await db
+      .update(configurations)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(configurations.id, id))
+      .returning();
+    
+    return updatedConfig || undefined;
+  }
+
+  async deleteConfiguration(id: string): Promise<boolean> {
+    const result = await db
+      .delete(configurations)
+      .where(eq(configurations.id, id))
+      .returning();
+    
+    return result.length > 0;
+  }
+}
+
+export const storage = new DatabaseStorage();
