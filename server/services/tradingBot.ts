@@ -1,5 +1,6 @@
 import { storage } from '../storage';
 import { demoMarketDataService } from './demoMarketData';
+import { marketDataService } from './marketData';
 import { telegramService } from './telegram';
 import { type InsertSignal, type BotStatus, type Configuration } from '@shared/schema';
 
@@ -67,7 +68,7 @@ export class TradingBotService {
       lastSignal: this.lastAlertTime?.toISOString(),
       uptime,
       connectionStatus: {
-        binance: true, // Assume connected if bot is running
+        binance: true, // Now using Kraken instead of Binance
         telegram: !!this.currentConfig?.telegramToken,
       },
       currentConfig: this.currentConfig!,
@@ -87,11 +88,20 @@ export class TradingBotService {
         if (!this.currentConfig) return;
       }
 
-      // Get latest market data
-      const latestData = await demoMarketDataService.getLatestData(
-        this.currentConfig.symbol,
-        this.currentConfig.timeframe
-      );
+      // Try to get real market data first, fallback to demo data
+      let latestData;
+      try {
+        // Convert XLM/USDT to XLM/USD for Kraken
+        const krakenSymbol = this.currentConfig.symbol === 'XLM/USDT' ? 'XLM/USD' : this.currentConfig.symbol;
+        latestData = await marketDataService.getLatestData(krakenSymbol, this.currentConfig.timeframe);
+        console.log('Using real Kraken market data');
+      } catch (error) {
+        console.log('Failed to get real data, using demo data:', error);
+        latestData = await demoMarketDataService.getLatestData(
+          this.currentConfig.symbol,
+          this.currentConfig.timeframe
+        );
+      }
 
       if (!latestData || !latestData.rsi || !latestData.macd || !latestData.macdSignal) {
         console.log('Insufficient data for signal analysis');

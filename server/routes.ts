@@ -4,6 +4,7 @@ import { WebSocketServer, WebSocket } from "ws";
 import { storage } from "./storage";
 import { tradingBotService } from "./services/tradingBot";
 import { demoMarketDataService } from "./services/demoMarketData";
+import { marketDataService } from "./services/marketData";
 import { telegramService } from "./services/telegram";
 import { insertConfigurationSchema, updateConfigurationSchema, type WebSocketMessage } from "@shared/schema";
 
@@ -315,6 +316,60 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(500).json({ message: "Failed to send signal", error: (error as Error).message });
+    }
+  });
+
+  // Test Kraken/Exchange API connection
+  app.get("/api/exchange/test", async (req, res) => {
+    try {
+      const testData = await marketDataService.fetchOHLCV('XLM/USD', '5m', 5);
+      res.json({ 
+        status: "success",
+        exchange: "Kraken",
+        message: "Exchange API is working correctly",
+        sampleData: testData.slice(0, 2) // Show only first 2 entries
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "error",
+        message: "Failed to connect to exchange", 
+        error: (error as Error).message 
+      });
+    }
+  });
+
+  // Test full market data processing with indicators
+  app.get("/api/exchange/test-indicators", async (req, res) => {
+    try {
+      const config = await storage.getActiveConfiguration();
+      if (!config) {
+        return res.status(404).json({ message: "No active configuration found" });
+      }
+
+      const marketDataArray = await marketDataService.processMarketData('XLM/USD', '5m', config);
+      const latestData = marketDataArray[marketDataArray.length - 1];
+      
+      res.json({ 
+        status: "success",
+        exchange: "Kraken",
+        message: "Technical indicators calculated successfully",
+        latestData: {
+          symbol: latestData.symbol,
+          timestamp: latestData.timestamp,
+          price: latestData.close,
+          rsi: latestData.rsi,
+          macd: latestData.macd,
+          macdSignal: latestData.macdSignal,
+          volume: latestData.volume
+        },
+        totalDataPoints: marketDataArray.length
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: "error",
+        message: "Failed to process market data with indicators", 
+        error: (error as Error).message 
+      });
     }
   });
 
