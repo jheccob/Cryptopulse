@@ -1,0 +1,91 @@
+import ccxt
+import pandas as pd
+import ta
+import time
+from datetime import datetime
+import pytz
+import requests
+
+# Configurações
+TELEGRAM_TOKEN = '8454268048:AAFSiHU963ch55L5EhLSrpwdRtKBtPSO_0A'  # coloque seu token do bot
+CHAT_ID = '2081890738'       # coloque seu chat ID do Telegram
+
+exchange = ccxt.binance()
+
+SYMBOL = 'XLM/USDT'
+TIMEFRAME = '5m'
+BRAZIL_TZ = pytz.timezone('America/Sao_Paulo')
+
+def get_ohlcv():
+    data = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=100)
+    df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(BRAZIL_TZ)
+    return df
+
+def calculate_indicators(df):
+    macd = ta.trend.MACD(close=df['close'], window_slow=17, window_fast=8, window_sign=9)
+    df['macd'] = macd.macd()
+    df['macd_signal'] = macd.macd_signal()
+
+    rsi = ta.momentum.RSIIndicator(close=df['close'], window=14)
+    df['rsi'] = rsi.rsi()
+
+    df['vol_ma20'] = df['volume'].rolling(window=20).mean()
+    return df
+
+def send_telegram(message):
+    if TELEGRAM_TOKEN != 'SEU_TOKEN_AQUI' and CHAT_ID != 'SEU_CHAT_ID_AQUI':
+        url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
+        data = {'chat_id': CHAT_ID, 'text': message}
+        requests.post(url, data=data)
+
+def check_signal(df):
+    last = df.iloc[-1]
+    prev = df.iloc[-2]
+
+    macd_cross_up = (prev['macd'] < prev['macd_signal']) and (last['macd'] > last['macd_signal'])
+    macd_cross_down = (prev['macd'] > prev['macd_signal']) and (last['macd'] < last['macd_signal'])
+
+    rsi_ok = 20 < last['rsi'] < 80
+    vol_ok = last['volume'] > last['vol_ma20']
+
+    if vol_ok and rsi_ok:
+        if macd_cross_up:
+            return 'COMPRA'
+        elif macd_cross_down:
+            return 'VENDA'
+    return None
+
+def main():
+    last_alert_time = None
+
+    while True:
+        try:
+            df = get_ohlcv()
+            df = calculate_indicators(df)
+            signal = check_signal(df)
+            now_brazil = datetime.now(BRAZIL_TZ)
+
+            if signal:
+                # evita alertas repetidos no mesmo candle
+                if last_alert_time is None or (now_brazil - last_alert_time).total_seconds() > 300:
+                    price = df.iloc[-1]['close']
+                    rsi = df.iloc[-1]['rsi']
+                    time_str = now_brazil.strftime('%d/%m/%Y %H:%M:%S')
+                    msg = f'🚨 SINAL {signal}\nPar: {SYMBOL}\n💰 Preço: {price:.5f}\n📊 RSI: {rsi:.1f}\n🕒 Hora: {time_str}'
+                    
+                    # Envia pro Telegram
+                    send_telegram(msg)
+                    # Mostra no console
+                    print(f"[{time_str}] {SYMBOL} - Sinal: {signal} (MACD e RSI confirmados) - Preço: {price:.5f}")
+                    
+                    last_alert_time = now_brazil
+
+            time.sleep(60)  # espera 1 minuto antes de checar de novo
+
+        except Exception as e:
+            print(f'Erro: {e}')
+            time.sleep(60)
+
+if __name__ == '__main__':
+    main()
