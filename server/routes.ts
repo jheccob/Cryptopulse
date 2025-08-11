@@ -1,0 +1,246 @@
+import type { Express } from "express";
+import { createServer, type Server } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import { storage } from "./storage";
+import { tradingBotService } from "./services/tradingBot";
+import { marketDataService } from "./services/marketData";
+import { telegramService } from "./services/telegram";
+import { insertConfigurationSchema, updateConfigurationSchema, type WebSocketMessage } from "@shared/schema";
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+
+  // WebSocket server setup
+  const wss = new WebSocketServer({ server: httpServer, path: '/ws' });
+  
+  // Store connected clients
+  const clients = new Set<WebSocket>();
+
+  wss.on('connection', (ws) => {
+    clients.add(ws);
+    console.log('WebSocket client connected');
+
+    // Send initial bot status
+    const status = tradingBotService.getStatus();
+    const message: WebSocketMessage = {
+      type: 'BOT_STATUS',
+      data: status,
+      timestamp: new Date().toISOString(),
+    };
+    
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(message));
+    }
+
+    ws.on('close', () => {
+      clients.delete(ws);
+      console.log('WebSocket client disconnected');
+    });
+
+    ws.on('error', (error) => {
+      console.error('WebSocket error:', error);
+      clients.delete(ws);
+    });
+  });
+
+  // Broadcast function for real-time updates
+  const broadcast = (message: WebSocketMessage) => {
+    const messageStr = JSON.stringify(message);
+    clients.forEach(client => {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(messageStr);
+      }
+    });
+  };
+
+  // API Routes
+
+  // Get bot status
+  app.get("/api/bot/status", async (req, res) => {
+    try {
+      const status = tradingBotService.getStatus();
+      res.json(status);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get bot status" });
+    }
+  });
+
+  // Start bot
+  app.post("/api/bot/start", async (req, res) => {
+    try {
+      await tradingBotService.start();
+      await marketDataService.start();
+      
+      const status = tradingBotService.getStatus();
+      broadcast({
+        type: 'BOT_STATUS',
+        data: status,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.json({ message: "Bot started successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to start bot", error: (error as Error).message });
+    }
+  });
+
+  // Stop bot
+  app.post("/api/bot/stop", async (req, res) => {
+    try {
+      tradingBotService.stop();
+      marketDataService.stop();
+      
+      const status = tradingBotService.getStatus();
+      broadcast({
+        type: 'BOT_STATUS',
+        data: status,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.json({ message: "Bot stopped successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to stop bot" });
+    }
+  });
+
+  // Get recent signals
+  app.get("/api/signals", async (req, res) => {
+    try {
+      const limit = parseInt(req.query.limit as string) || 10;
+      const signals = await storage.getRecentSignals(limit);
+      res.json(signals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get signals" });
+    }
+  });
+
+  // Get signals by time range
+  app.get("/api/signals/range", async (req, res) => {
+    try {
+      const { start, end } = req.query;
+      if (!start || !end) {
+        return res.status(400).json({ message: "Start and end dates are required" });
+      }
+      
+      const signals = await storage.getSignalsByTimeRange(new Date(start as string), new Date(end as string));
+      res.json(signals);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get signals by range" });
+    }
+  });
+
+  // Get latest market data
+  app.get("/api/market-data/:symbol/:timeframe", async (req, res) => {
+    try {
+      const { symbol, timeframe } = req.params;
+      const limit = parseInt(req.query.limit as string) || 100;
+      
+      const data = await storage.getLatestMarketData(symbol, timeframe, limit);
+      res.json(data);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get market data" });
+    }
+  });
+
+  // Get active configuration
+  app.get("/api/config", async (req, res) => {
+    try {
+      const config = await storage.getActiveConfiguration();
+      if (!config) {
+        return res.status(404).json({ message: "No active configuration found" });
+      }
+      res.json(config);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to get configuration" });
+    }
+  });
+
+  // Update configuration
+  app.patch("/api/config/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const updates = updateConfigurationSchema.parse(req.body);
+      
+      const updatedConfig = await storage.updateConfiguration(id, updates);
+      if (!updatedConfig) {
+        return res.status(404).json({ message: "Configuration not found" });
+      }
+
+      // Update bot configuration
+      await tradingBotService.updateConfiguration(id, updates);
+      
+      // Broadcast configuration update
+      broadcast({
+        type: 'CONFIG_UPDATE',
+        data: updatedConfig,
+        timestamp: new Date().toISOString(),
+      });
+      
+      res.json(updatedConfig);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update configuration" });
+    }
+  });
+
+  // Create new configuration
+  app.post("/api/config", async (req, res) => {
+    try {
+      const configData = insertConfigurationSchema.parse(req.body);
+      
+      // Deactivate current config if this one is being set as active
+      if (configData.isActive) {
+        const currentConfig = await storage.getActiveConfiguration();
+        if (currentConfig) {
+          await storage.updateConfiguration(currentConfig.id, { isActive: false });
+        }
+      }
+      
+      const config = await storage.createConfiguration(configData);
+      res.status(201).json(config);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create configuration" });
+    }
+  });
+
+  // Test Telegram connection
+  app.post("/api/telegram/test", async (req, res) => {
+    try {
+      const { token, chatId } = req.body;
+      
+      if (!token || !chatId) {
+        return res.status(400).json({ message: "Token and chatId are required" });
+      }
+      
+      const originalToken = process.env.TELEGRAM_TOKEN;
+      const originalChatId = process.env.TELEGRAM_CHAT_ID;
+      
+      // Temporarily update credentials for testing
+      telegramService.updateCredentials(token, chatId);
+      
+      const isConnected = await telegramService.testConnection();
+      
+      if (isConnected) {
+        await telegramService.sendMessage("✅ Telegram connection test successful!");
+      }
+      
+      // Restore original credentials
+      telegramService.updateCredentials(originalToken || '', originalChatId || '');
+      
+      res.json({ connected: isConnected });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to test Telegram connection" });
+    }
+  });
+
+  // Periodic broadcasts for real-time updates
+  setInterval(() => {
+    const status = tradingBotService.getStatus();
+    broadcast({
+      type: 'BOT_STATUS',
+      data: status,
+      timestamp: new Date().toISOString(),
+    });
+  }, 30000); // Every 30 seconds
+
+  return httpServer;
+}

@@ -1,0 +1,179 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: hsl(222, 84%, 5%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(222, 84%, 5%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --popover: hsl(222, 84%, 5%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(213, 94%, 68%);
+  --primary-foreground: hsl(222, 84%, 5%);
+  --secondary: hsl(222, 84%, 5%);
+  --secondary-foreground: hsl(210, 40%, 98%);
+  --muted: hsl(215, 25%, 27%);
+  --muted-foreground: hsl(217, 10%, 64%);
+  --accent: hsl(215, 25%, 27%);
+  --accent-foreground: hsl(210, 40%, 98%);
+  --destructive: hsl(0, 63%, 61%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217, 10%, 64%);
+  --input: hsl(215, 16%, 47%);
+  --ring: hsl(213, 94%, 68%);
+  --chart-1: hsl(213, 94%, 68%);
+  --chart-2: hsl(159, 100%, 36%);
+  --chart-3: hsl(42, 93%, 56%);
+  --chart-4: hsl(147, 78%, 42%);
+  --chart-5: hsl(341, 75%, 51%);
+  --trading-bg: hsl(222, 84%, 5%);
+  --trading-surface: hsl(215, 25%, 27%);
+  --trading-surface-light: hsl(215, 16%, 47%);
+  --trading-border: hsl(217, 10%, 64%);
+  --trading-text: hsl(210, 40%, 98%);
+  --trading-text-secondary: hsl(217, 10%, 64%);
+  --trading-success: hsl(159, 100%, 36%);
+  --trading-danger: hsl(0, 63%, 61%);
+  --trading-warning: hsl(42, 93%, 56%);
+  --trading-primary: hsl(213, 94%, 68%);
+  --font-sans: 'Inter', 'Open Sans', sans-serif;
+  --font-serif: Georgia, serif;
+  --font-mono: 'JetBrains Mono', 'Menlo', monospace;
+  --radius: 1.3rem;
+}
+
+.dark {
+  --background: hsl(222, 84%, 5%);
+  --foreground: hsl(210, 40%, 98%);
+  --card: hsl(215, 25%, 27%);
+  --card-foreground: hsl(210, 40%, 98%);
+  --popover: hsl(222, 84%, 5%);
+  --popover-foreground: hsl(210, 40%, 98%);
+  --primary: hsl(213, 94%, 68%);
+  --primary-foreground: hsl(222, 84%, 5%);
+  --secondary: hsl(195, 15%, 95%);
+  --secondary-foreground: hsl(222, 84%, 5%);
+  --muted: hsl(215, 25%, 27%);
+  --muted-foreground: hsl(217, 10%, 64%);
+  --accent: hsl(215, 25%, 27%);
+  --accent-foreground: hsl(213, 94%, 68%);
+  --destructive: hsl(0, 63%, 61%);
+  --destructive-foreground: hsl(210, 40%, 98%);
+  --border: hsl(217, 10%, 64%);
+  --input: hsl(215, 16%, 47%);
+  --ring: hsl(213, 94%, 68%);
+  --chart-1: hsl(213, 94%, 68%);
+  --chart-2: hsl(159, 100%, 36%);
+  --chart-3: hsl(42, 93%, 56%);
+  --chart-4: hsl(147, 78%, 42%);
+  --chart-5: hsl(341, 75%, 51%);
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply font-sans antialiased bg-background text-foreground;
+  }
+
+  .trading-bg {
+    background-color: var(--trading-bg);
+  }
+
+  .trading-surface {
+    background-color: var(--trading-surface);
+  }
+
+  .trading-surface-light {
+    background-color: var(--trading-surface-light);
+  }
+
+  .trading-border {
+    border-color: var(--trading-border);
+  }
+
+  .trading-text {
+    color: var(--trading-text);
+  }
+
+  .trading-text-secondary {
+    color: var(--trading-text-secondary);
+  }
+
+  .trading-success {
+    color: var(--trading-success);
+  }
+
+  .trading-danger {
+    color: var(--trading-danger);
+  }
+
+  .trading-warning {
+    color: var(--trading-warning);
+  }
+
+  .trading-primary {
+    color: var(--trading-primary);
+  }
+
+  .bg-trading-bg {
+    background-color: var(--trading-bg);
+  }
+
+  .bg-trading-surface {
+    background-color: var(--trading-surface);
+  }
+
+  .bg-trading-surface-light {
+    background-color: var(--trading-surface-light);
+  }
+
+  .bg-trading-success {
+    background-color: var(--trading-success);
+  }
+
+  .bg-trading-danger {
+    background-color: var(--trading-danger);
+  }
+
+  .bg-trading-warning {
+    background-color: var(--trading-warning);
+  }
+
+  .bg-trading-primary {
+    background-color: var(--trading-primary);
+  }
+
+  .border-trading-border {
+    border-color: var(--trading-border);
+  }
+
+  .text-trading-text {
+    color: var(--trading-text);
+  }
+
+  .text-trading-text-secondary {
+    color: var(--trading-text-secondary);
+  }
+
+  .text-trading-success {
+    color: var(--trading-success);
+  }
+
+  .text-trading-danger {
+    color: var(--trading-danger);
+  }
+
+  .text-trading-warning {
+    color: var(--trading-warning);
+  }
+
+  .text-trading-primary {
+    color: var(--trading-primary);
+  }
+}
