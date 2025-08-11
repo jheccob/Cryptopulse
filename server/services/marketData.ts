@@ -14,7 +14,7 @@ export class MarketDataService {
   private isRunning = false;
 
   constructor() {
-    this.exchange = new ccxt.kraken({
+    this.exchange = new ccxt.coinbase({
       sandbox: false,
       enableRateLimit: true,
     });

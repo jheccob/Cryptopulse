@@ -41,6 +41,8 @@ export class TelegramService {
     price: number;
     rsi: number;
     timestamp: Date;
+    macd?: number;
+    macdSignal?: number;
   }): Promise<boolean> {
     const timeStr = signal.timestamp.toLocaleString('pt-BR', {
       timeZone: 'America/Sao_Paulo',
@@ -52,11 +54,26 @@ export class TelegramService {
       second: '2-digit'
     });
 
-    const message = `🚨 <b>SINAL ${signal.type}</b>
-📊 Par: <code>${signal.symbol}</code>
-💰 Preço: <code>${signal.price.toFixed(5)}</code>
-📈 RSI: <code>${signal.rsi.toFixed(1)}</code>
-🕒 Hora: <code>${timeStr}</code>`;
+    const signalIcon = signal.type === 'BUY' ? '🟢 COMPRAR' : '🔴 VENDER';
+    const priceDirection = signal.type === 'BUY' ? '⬆️' : '⬇️';
+    
+    let message = `${signalIcon}
+    
+📊 <b>Par:</b> ${signal.symbol}
+💰 <b>Preço:</b> $${signal.price.toFixed(5)} ${priceDirection}
+📈 <b>RSI:</b> ${signal.rsi.toFixed(1)}`;
+
+    if (signal.macd !== undefined && signal.macdSignal !== undefined) {
+      message += `
+📉 <b>MACD:</b> ${signal.macd.toFixed(6)}
+📊 <b>Signal:</b> ${signal.macdSignal.toFixed(6)}`;
+    }
+
+    message += `
+⏰ <b>Horário:</b> ${timeStr}
+🔄 <b>Exchange:</b> Coinbase
+
+💡 <i>Baseado em análise técnica automatizada</i>`;
 
     return await this.sendMessage(message);
   }

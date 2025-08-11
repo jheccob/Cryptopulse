@@ -319,13 +319,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Test Kraken/Exchange API connection
+  // Test Coinbase/Exchange API connection
   app.get("/api/exchange/test", async (req, res) => {
     try {
-      const testData = await marketDataService.fetchOHLCV('XLM/USD', '5m', 5);
+      const testData = await marketDataService.fetchOHLCV('XLM-USD', '5m', 5);
       res.json({ 
         status: "success",
-        exchange: "Kraken",
+        exchange: "Coinbase",
         message: "Exchange API is working correctly",
         sampleData: testData.slice(0, 2) // Show only first 2 entries
       });
@@ -346,12 +346,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "No active configuration found" });
       }
 
-      const marketDataArray = await marketDataService.processMarketData('XLM/USD', '5m', config);
+      const marketDataArray = await marketDataService.processMarketData('XLM-USD', '5m', config);
       const latestData = marketDataArray[marketDataArray.length - 1];
       
       res.json({ 
         status: "success",
-        exchange: "Kraken",
+        exchange: "Coinbase",
         message: "Technical indicators calculated successfully",
         latestData: {
           symbol: latestData.symbol,

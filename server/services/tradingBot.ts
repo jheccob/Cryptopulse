@@ -68,7 +68,7 @@ export class TradingBotService {
       lastSignal: this.lastAlertTime?.toISOString(),
       uptime,
       connectionStatus: {
-        binance: true, // Now using Kraken instead of Binance
+        binance: true, // Now using Coinbase instead of Binance
         telegram: !!this.currentConfig?.telegramToken,
       },
       currentConfig: this.currentConfig!,
@@ -91,10 +91,10 @@ export class TradingBotService {
       // Try to get real market data first, fallback to demo data
       let latestData;
       try {
-        // Convert XLM/USDT to XLM/USD for Kraken
-        const krakenSymbol = this.currentConfig.symbol === 'XLM/USDT' ? 'XLM/USD' : this.currentConfig.symbol;
-        latestData = await marketDataService.getLatestData(krakenSymbol, this.currentConfig.timeframe);
-        console.log('Using real Kraken market data');
+        // Convert XLM/USDT to XLM-USD for Coinbase
+        const coinbaseSymbol = this.currentConfig.symbol.replace('/', '-');
+        latestData = await marketDataService.getLatestData(coinbaseSymbol, this.currentConfig.timeframe);
+        console.log('Using real Coinbase market data');
       } catch (error) {
         console.log('Failed to get real data, using demo data:', error);
         latestData = await demoMarketDataService.getLatestData(
@@ -189,24 +189,36 @@ export class TradingBotService {
       // Store signal in database
       const signal = await storage.createSignal(signalData);
       
-      // Send Telegram notification if enabled
-      if (this.currentConfig?.telegramEnabled) {
+      console.log(`🚨 NOVO SINAL: ${signal.type} ${signal.symbol} por $${signal.price.toFixed(5)} | RSI: ${signal.rsi.toFixed(1)}`);
+      
+      // Always try to send to Telegram using environment variables
+      const telegramToken = process.env.TELEGRAM_TOKEN;
+      const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+      
+      if (telegramToken && telegramChatId) {
+        // Update telegram service credentials
+        telegramService.updateCredentials(telegramToken, telegramChatId);
+        
         const sent = await telegramService.sendSignalAlert({
           type: signal.type,
           symbol: signal.symbol,
           price: signal.price,
           rsi: signal.rsi,
           timestamp: signal.timestamp,
+          macd: signal.macd,
+          macdSignal: signal.macdSignal,
         });
 
         if (sent) {
-          console.log(`Telegram alert sent for ${signal.type} signal`);
+          console.log('✅ Sinal enviado para Telegram com sucesso!');
+        } else {
+          console.log('❌ Falha ao enviar sinal para Telegram');
         }
+      } else {
+        console.log('⚠️ Credenciais do Telegram não encontradas - configure TELEGRAM_TOKEN e TELEGRAM_CHAT_ID');
       }
 
       this.lastAlertTime = new Date();
-      
-      console.log(`${signal.timestamp.toISOString()} - ${signal.symbol} Signal: ${signal.type} at ${signal.price.toFixed(5)}`);
       
     } catch (error) {
       console.error('Error processing signal:', error);
