@@ -486,13 +486,16 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Analytics Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-            {/* Performance Chart */}
-            <PerformanceChart signals={signals} />
-            
-            {/* Uptime Chart */}
-            <UptimeChart botStatus={botStatus} isConnected={isConnected} />
+          {/* Analytics Section */}
+          <div className="mb-6">
+            <h3 className="text-lg font-semibold mb-4 text-trading-text">Analytics & Monitoring</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+              {/* Performance Chart */}
+              <PerformanceChart signals={signals} />
+              
+              {/* Uptime Chart */}
+              <UptimeChart botStatus={botStatus} isConnected={isConnected} />
+            </div>
           </div>
 
           {/* Configuration Panel */}

@@ -114,17 +114,17 @@ export function UptimeChart({ botStatus, isConnected }: UptimeChartProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Métricas principais */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-trading-primary">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center p-3 bg-trading-surface-light rounded-lg border border-trading-border">
+              <div className="text-2xl font-bold text-trading-primary mb-1">
                 {uptimePercentage}%
               </div>
               <div className="text-xs text-trading-text-secondary">Uptime 24h</div>
             </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+            <div className="text-center p-3 bg-trading-surface-light rounded-lg border border-trading-border">
+              <div className={`text-2xl font-bold mb-1 ${
                 latency > 0 ? 'text-trading-success' : 'text-trading-text-secondary'
               }`}>
                 {latency}ms

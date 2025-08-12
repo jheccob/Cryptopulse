@@ -140,17 +140,17 @@ export function PerformanceChart({ signals }: PerformanceChartProps) {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Métricas principais */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-trading-success">
+          <div className="grid grid-cols-2 gap-6">
+            <div className="text-center p-3 bg-trading-surface-light rounded-lg border border-trading-border">
+              <div className="text-2xl font-bold text-trading-success mb-1">
                 {performance.accuracyRate}%
               </div>
               <div className="text-xs text-trading-text-secondary">Taxa de Acertos</div>
             </div>
-            <div className="text-center">
-              <div className={`text-2xl font-bold ${
+            <div className="text-center p-3 bg-trading-surface-light rounded-lg border border-trading-border">
+              <div className={`text-2xl font-bold mb-1 ${
                 parseFloat(performance.estimatedPnL) >= 0 ? 'text-trading-success' : 'text-trading-danger'
               }`}>
                 {parseFloat(performance.estimatedPnL) >= 0 ? '+' : ''}{performance.estimatedPnL}%
@@ -171,22 +171,22 @@ export function PerformanceChart({ signals }: PerformanceChartProps) {
           </div>
 
           {/* Estatísticas detalhadas */}
-          <div className="grid grid-cols-3 gap-3 text-center">
-            <div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="text-center p-2 bg-trading-surface-light/50 rounded-lg">
               <div className="flex items-center justify-center mb-1">
                 <TrendingUp className="w-4 h-4 text-trading-success mr-1" />
                 <span className="text-sm font-semibold">{performance.buySignals}</span>
               </div>
               <div className="text-xs text-trading-text-secondary">Sinais BUY</div>
             </div>
-            <div>
+            <div className="text-center p-2 bg-trading-surface-light/50 rounded-lg">
               <div className="flex items-center justify-center mb-1">
                 <TrendingDown className="w-4 h-4 text-trading-danger mr-1" />
                 <span className="text-sm font-semibold">{performance.sellSignals}</span>
               </div>
               <div className="text-xs text-trading-text-secondary">Sinais SELL</div>
             </div>
-            <div>
+            <div className="text-center p-2 bg-trading-surface-light/50 rounded-lg">
               <div className="flex items-center justify-center mb-1">
                 <Target className="w-4 h-4 text-trading-primary mr-1" />
                 <span className="text-sm font-semibold">{performance.totalSignals}</span>
