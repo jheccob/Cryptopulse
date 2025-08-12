@@ -303,6 +303,56 @@ export default function Dashboard() {
             <p>Uptime: {formatUptime(botStatus?.uptime || '0h 0m')}</p>
           </div>
         </div>
+
+        {/* Quick Settings */}
+        <div className="p-4 border-t border-trading-border">
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <Settings className="w-4 h-4 text-trading-primary" />
+              <h4 className="text-sm font-medium text-trading-text">Configurações</h4>
+            </div>
+            
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs text-trading-text-secondary mb-1">
+                  Par de Trading
+                </label>
+                <Select value={config.symbol}>
+                  <SelectTrigger className="bg-trading-surface-light border-trading-border text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="XLM/USDT">XLM/USDT</SelectItem>
+                    <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
+                    <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div>
+                <label className="block text-xs text-trading-text-secondary mb-1">
+                  Timeframe
+                </label>
+                <Select value={config.timeframe}>
+                  <SelectTrigger className="bg-trading-surface-light border-trading-border text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5m">5m</SelectItem>
+                    <SelectItem value="15m">15m</SelectItem>
+                    <SelectItem value="1h">1h</SelectItem>
+                    <SelectItem value="4h">4h</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-trading-text-secondary">Alertas Telegram</span>
+                <Switch checked={config.telegramEnabled} />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
@@ -537,36 +587,7 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
 
-              {/* Quick Settings */}
-              <Card className="bg-trading-surface border-trading-border">
-                <CardHeader>
-                  <CardTitle className="text-lg">Quick Settings</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-xs text-trading-text-secondary mb-2">
-                        Trading Pair
-                      </label>
-                      <Select value={config.symbol}>
-                        <SelectTrigger className="bg-trading-surface-light border-trading-border">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="XLM/USDT">XLM/USDT</SelectItem>
-                          <SelectItem value="BTC/USDT">BTC/USDT</SelectItem>
-                          <SelectItem value="ETH/USDT">ETH/USDT</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-trading-text-secondary">Telegram Alerts</span>
-                      <Switch checked={config.telegramEnabled} />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+              
             </div>
           </div>
 
