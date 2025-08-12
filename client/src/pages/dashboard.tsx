@@ -42,6 +42,8 @@ export default function Dashboard() {
     lastUpdate: Date;
   } | null>(null);
 
+  const [showAnalytics, setShowAnalytics] = useState(false);
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -286,6 +288,16 @@ export default function Dashboard() {
               <div className="flex items-center space-x-2">
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => setShowAnalytics(!showAnalytics)}
+                  className="border-trading-border text-trading-text hover:bg-trading-surface-light"
+                >
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  {showAnalytics ? 'Ocultar Analytics' : 'Mostrar Analytics'}
+                </Button>
+                
+                <Button
+                  size="sm"
                   onClick={() => botStatus?.isRunning ? stopBotMutation.mutate() : startBotMutation.mutate()}
                   disabled={startBotMutation.isPending || stopBotMutation.isPending}
                   className={`${
@@ -505,17 +517,29 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Analytics Section */}
-          <div className="mb-6">
-            <h3 className="text-lg font-semibold mb-4 text-trading-text">Analytics & Monitoring</h3>
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-              {/* Performance Chart */}
-              <PerformanceChart signals={signals} />
-              
-              {/* Uptime Chart */}
-              <UptimeChart botStatus={botStatus} isConnected={isConnected} />
+          {/* Analytics Section - Condicional */}
+          {showAnalytics && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-trading-text">Analytics & Monitoring</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowAnalytics(false)}
+                  className="text-trading-text-secondary hover:text-trading-text"
+                >
+                  ✕ Fechar
+                </Button>
+              </div>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                {/* Performance Chart */}
+                <PerformanceChart signals={signals} />
+                
+                {/* Uptime Chart */}
+                <UptimeChart botStatus={botStatus} isConnected={isConnected} />
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Configuration Panel */}
           <ConfigPanel config={config} />
