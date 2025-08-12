@@ -22,7 +22,8 @@ import {
   Settings,
   Wifi,
   WifiOff,
-  BarChart3
+  BarChart3,
+  MessageSquare
 } from 'lucide-react';
 import { 
   type BotStatus, 
@@ -215,6 +216,58 @@ export default function Dashboard() {
                 <Button size="sm" variant="ghost" className="text-xs">
                   Sair
                 </Button>
+              </div>
+            </div>
+
+            {/* Telegram Configuration */}
+            <div className="bg-trading-surface-light rounded-lg p-4">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <MessageSquare className="w-4 h-4 text-trading-primary" />
+                    <h4 className="text-sm font-medium text-trading-text">Telegram Bot</h4>
+                  </div>
+                  <div className={`w-2 h-2 rounded-full ${
+                    config?.telegramEnabled ? 'bg-trading-success' : 'bg-trading-warning'
+                  }`} />
+                </div>
+                
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-xs text-trading-text-secondary mb-1">
+                      Bot Token
+                    </label>
+                    <input
+                      type="password"
+                      value={config?.telegramToken || ''}
+                      placeholder="Token do BotFather"
+                      className="w-full px-2 py-1 text-xs bg-trading-surface border border-trading-border rounded text-trading-text placeholder:text-trading-text-secondary focus:outline-none focus:ring-1 focus:ring-trading-primary"
+                      readOnly
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs text-trading-text-secondary mb-1">
+                      Chat ID
+                    </label>
+                    <input
+                      type="text"
+                      value={config?.telegramChatId || ''}
+                      placeholder="Seu Chat ID"
+                      className="w-full px-2 py-1 text-xs bg-trading-surface border border-trading-border rounded text-trading-text placeholder:text-trading-text-secondary focus:outline-none focus:ring-1 focus:ring-trading-primary"
+                      readOnly
+                    />
+                  </div>
+                  
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs text-trading-text-secondary">Status</span>
+                    <span className={`text-xs font-medium ${
+                      config?.telegramEnabled ? 'text-trading-success' : 'text-trading-warning'
+                    }`}>
+                      {config?.telegramEnabled ? 'Ativo' : 'Desativado'}
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
