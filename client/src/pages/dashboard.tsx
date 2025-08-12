@@ -7,6 +7,8 @@ import { Switch } from '@/components/ui/switch';
 import { Chart } from '@/components/chart';
 import { SignalCard } from '@/components/signal-card';
 import { ConfigPanel } from '@/components/config-panel';
+import { PerformanceChart } from '@/components/performance-chart';
+import { UptimeChart } from '@/components/uptime-chart';
 import { useWebSocket } from '@/hooks/use-websocket';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -482,6 +484,15 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+
+          {/* Analytics Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Performance Chart */}
+            <PerformanceChart signals={signals} />
+            
+            {/* Uptime Chart */}
+            <UptimeChart botStatus={botStatus} isConnected={isConnected} />
           </div>
 
           {/* Configuration Panel */}
