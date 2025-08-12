@@ -186,15 +186,34 @@ export default function Dashboard() {
     <div className="min-h-screen bg-trading-bg text-trading-text">
       {/* Sidebar */}
       <div className="fixed left-0 top-0 h-full w-64 bg-trading-surface border-r border-trading-border flex flex-col">
-        {/* Logo */}
+        {/* Login Section */}
         <div className="p-6 border-b border-trading-border">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-trading-primary rounded-lg flex items-center justify-center">
-              <TrendingUp className="w-5 h-5 text-white" />
+          <div className="space-y-4">
+            {/* Logo */}
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-trading-primary rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-lg font-semibold">CryptoTrader</h1>
+                <p className="text-xs text-trading-text-secondary">Pro Dashboard</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-lg font-semibold">CryptoTrader</h1>
-              <p className="text-xs text-trading-text-secondary">Pro Dashboard</p>
+            
+            {/* User Profile/Login */}
+            <div className="bg-trading-surface-light rounded-lg p-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-trading-primary/20 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-semibold text-trading-primary">U</span>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-trading-text">Usuario</p>
+                  <p className="text-xs text-trading-text-secondary">Conectado</p>
+                </div>
+                <Button size="sm" variant="ghost" className="text-xs">
+                  Sair
+                </Button>
+              </div>
             </div>
           </div>
         </div>
