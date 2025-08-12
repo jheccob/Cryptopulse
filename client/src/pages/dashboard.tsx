@@ -44,6 +44,7 @@ export default function Dashboard() {
   } | null>(null);
 
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showConfigPanel, setShowConfigPanel] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -401,6 +402,16 @@ export default function Dashboard() {
                 
                 <Button
                   size="sm"
+                  variant="outline"
+                  onClick={() => setShowConfigPanel(!showConfigPanel)}
+                  className="border-trading-border text-trading-text hover:bg-trading-surface-light"
+                >
+                  <Settings className="w-4 h-4 mr-2" />
+                  {showConfigPanel ? 'Ocultar Config' : 'Configurações'}
+                </Button>
+                
+                <Button
+                  size="sm"
                   onClick={() => botStatus?.isRunning ? stopBotMutation.mutate() : startBotMutation.mutate()}
                   disabled={startBotMutation.isPending || stopBotMutation.isPending}
                   className={`${
@@ -615,8 +626,23 @@ export default function Dashboard() {
             </div>
           )}
 
-          {/* Configuration Panel */}
-          <ConfigPanel config={config} />
+          {/* Configuration Panel - Condicional */}
+          {showConfigPanel && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-trading-text">Configurações Avançadas</h3>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setShowConfigPanel(false)}
+                  className="text-trading-text-secondary hover:text-trading-text"
+                >
+                  ✕ Fechar
+                </Button>
+              </div>
+              <ConfigPanel config={config} />
+            </div>
+          )}
         </main>
       </div>
     </div>
