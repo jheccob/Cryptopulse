@@ -23,11 +23,16 @@ export class TradingBotService {
 
   private async loadConfiguration() {
     this.currentConfig = await storage.getActiveConfiguration() || null;
-    if (this.currentConfig?.telegramToken && this.currentConfig?.telegramChatId) {
-      telegramService.updateCredentials(
-        this.currentConfig.telegramToken,
-        this.currentConfig.telegramChatId
-      );
+    
+    // Priorizar variáveis de ambiente, depois configuração do banco
+    const telegramToken = process.env.TELEGRAM_TOKEN || this.currentConfig?.telegramToken;
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID || this.currentConfig?.telegramChatId;
+    
+    if (telegramToken && telegramChatId) {
+      telegramService.updateCredentials(telegramToken, telegramChatId);
+      console.log('✅ Credenciais do Telegram carregadas com sucesso');
+    } else {
+      console.log('⚠️ Credenciais do Telegram não encontradas');
     }
   }
 
@@ -71,13 +76,18 @@ export class TradingBotService {
     const uptime = this.isRunning ? 
       this.formatUptime(Date.now() - this.startTime.getTime()) : '0h 0m';
 
+    // Verificar se temos credenciais do Telegram (env vars ou config)
+    const telegramToken = process.env.TELEGRAM_TOKEN || this.currentConfig?.telegramToken;
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID || this.currentConfig?.telegramChatId;
+    const hasTelegramCredentials = !!(telegramToken && telegramChatId);
+
     return {
       isRunning: this.isRunning,
       lastSignal: this.lastAlertTime?.toISOString(),
       uptime,
       connectionStatus: {
         binance: true, // Now using Coinbase instead of Binance
-        telegram: !!this.currentConfig?.telegramToken,
+        telegram: hasTelegramCredentials,
       },
       currentConfig: this.currentConfig!,
     };
@@ -237,13 +247,20 @@ export class TradingBotService {
         });
       }
       
-      // Always try to send to Telegram using environment variables
-      const telegramToken = process.env.TELEGRAM_TOKEN;
-      const telegramChatId = process.env.TELEGRAM_CHAT_ID;
+      // Tentar enviar para Telegram usando credenciais disponíveis
+      const telegramToken = process.env.TELEGRAM_TOKEN || this.currentConfig?.telegramToken;
+      const telegramChatId = process.env.TELEGRAM_CHAT_ID || this.currentConfig?.telegramChatId;
       
       if (telegramToken && telegramChatId) {
-        // Update telegram service credentials
+        // Atualizar credenciais do serviço Telegram
         telegramService.updateCredentials(telegramToken, telegramChatId);
+        
+        // Testar conexão primeiro
+        const isConnected = await telegramService.testConnection();
+        if (!isConnected) {
+          console.log('❌ Falha na conexão com o Telegram - verifique as credenciais');
+          return;
+        }
         
         const sent = await telegramService.sendSignalAlert({
           type: signal.type,
@@ -257,11 +274,15 @@ export class TradingBotService {
 
         if (sent) {
           console.log('✅ Sinal enviado para Telegram com sucesso!');
+          // Atualizar o sinal como enviado
+          await storage.updateSignal(signal.id, { telegramSent: true });
         } else {
-          console.log('❌ Falha ao enviar sinal para Telegram');
+          console.log('❌ Falha ao enviar sinal para Telegram - verifique token e chat ID');
         }
       } else {
-        console.log('⚠️ Credenciais do Telegram não encontradas - configure TELEGRAM_TOKEN e TELEGRAM_CHAT_ID');
+        console.log('⚠️ Credenciais do Telegram não configuradas');
+        console.log('   Configure TELEGRAM_TOKEN e TELEGRAM_CHAT_ID nas variáveis de ambiente');
+        console.log('   ou adicione nas configurações do bot');
       }
 
       this.lastAlertTime = new Date();
@@ -275,11 +296,13 @@ export class TradingBotService {
     await storage.updateConfiguration(configId, updates);
     await this.loadConfiguration();
     
-    if (this.currentConfig?.telegramToken && this.currentConfig?.telegramChatId) {
-      telegramService.updateCredentials(
-        this.currentConfig.telegramToken,
-        this.currentConfig.telegramChatId
-      );
+    // Recarregar credenciais após atualização
+    const telegramToken = process.env.TELEGRAM_TOKEN || this.currentConfig?.telegramToken;
+    const telegramChatId = process.env.TELEGRAM_CHAT_ID || this.currentConfig?.telegramChatId;
+    
+    if (telegramToken && telegramChatId) {
+      telegramService.updateCredentials(telegramToken, telegramChatId);
+      console.log('✅ Configurações do Telegram atualizadas');
     }
   }
 }
