@@ -145,8 +145,24 @@ export class TradingBotService {
         );
       }
 
-      if (!latestData || !latestData.rsi || !latestData.macd || !latestData.macdSignal) {
-        console.log('Insufficient data for signal analysis');
+      if (!latestData) {
+        console.log('❌ No market data received from Coinbase');
+        return;
+      }
+      
+      console.log('📊 Dados recebidos:', {
+        price: latestData.close,
+        rsi: latestData.rsi,
+        macd: latestData.macd,
+        macdSignal: latestData.macdSignal,
+        hasRSI: !!latestData.rsi,
+        hasMacd: !!latestData.macd,
+        hasMacdSignal: !!latestData.macdSignal
+      });
+      
+      if (!latestData.rsi || !latestData.macd || !latestData.macdSignal) {
+        console.log('❌ Insufficient data for signal analysis - missing indicators');
+        console.log(`   RSI: ${latestData.rsi}, MACD: ${latestData.macd}, MACD Signal: ${latestData.macdSignal}`);
         return;
       }
 

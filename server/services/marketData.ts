@@ -147,15 +147,21 @@ export class MarketDataService {
   async processMarketData(symbol: string, timeframe: string, config: any): Promise<InsertMarketData[]> {
     try {
       const ohlcvData = await this.fetchOHLCV(symbol, timeframe, 100);
+      console.log(`📈 Coinbase OHLCV data: ${ohlcvData.length} candles fetched for ${symbol}`);
+      
       const marketDataArray: InsertMarketData[] = [];
       
       // Extract closes and volumes for indicator calculation
       const closes = ohlcvData.map(d => d[4]); // close prices
       const volumes = ohlcvData.map(d => d[5]); // volumes
       
+      console.log(`📊 Price data: ${closes.length} closes, range: ${Math.min(...closes).toFixed(4)} - ${Math.max(...closes).toFixed(4)}`);
+      
       // Calculate indicators for all data points
       const rsiValues = this.calculateRSI(closes, config.rsiPeriod);
       const macdData = this.calculateMACD(closes, config.macdFast, config.macdSlow, config.macdSignal);
+      
+      console.log(`🔢 Indicators calculated: RSI count=${rsiValues.length}, MACD count=${macdData.macd.length}`);
       
       // Process each OHLCV data point
       for (let i = 0; i < ohlcvData.length; i++) {
