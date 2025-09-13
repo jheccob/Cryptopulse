@@ -11,6 +11,7 @@ export class TradingBotService {
   private intervalId: NodeJS.Timeout | null = null;
   private currentConfig: Configuration | null = null;
   private broadcastFunction: ((message: any) => void) | null = null;
+  private startupProtectionTime: Date | null = null;
 
   constructor() {
     this.loadConfiguration();
@@ -46,8 +47,10 @@ export class TradingBotService {
 
     this.isRunning = true;
     this.startTime = new Date();
+    this.startupProtectionTime = new Date(); // Ativar proteção de inicialização
     
     console.log(`Trading bot started for ${this.currentConfig.symbol} on ${this.currentConfig.timeframe}`);
+    console.log('🛡️ Proteção de inicialização ativada - sem sinais por 2 minutos');
     
     // Start the monitoring loop - check every 30 seconds for faster signal detection
     this.intervalId = setInterval(() => {
@@ -55,15 +58,15 @@ export class TradingBotService {
       this.checkSignals().catch(console.error);
     }, 30000); // Check every 30 seconds
 
-    // Initial check
-    console.log('🚀 Running initial signal check...');
-    await this.checkSignals();
+    // Remover verificação inicial - esperar primeiro intervalo para evitar sinais imediatos
+    // await this.checkSignals();
   }
 
   stop(): void {
     if (!this.isRunning) return;
 
     this.isRunning = false;
+    this.startupProtectionTime = null; // Reset proteção de inicialização
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
@@ -170,6 +173,20 @@ export class TradingBotService {
 
   private analyzeSignalRealTime(current: any, config: Configuration): InsertSignal | null {
     const { rsiLower, rsiUpper } = config;
+    
+    // Check startup protection period (2 minutes)
+    if (this.startupProtectionTime) {
+      const timeSinceStartup = Date.now() - this.startupProtectionTime.getTime();
+      const startupProtectionMs = 2 * 60 * 1000; // 2 minutes in ms
+      if (timeSinceStartup < startupProtectionMs) {
+        const remainingSeconds = Math.floor((startupProtectionMs - timeSinceStartup) / 1000);
+        console.log(`🛡️ Proteção de inicialização ativa: ${remainingSeconds}s restantes`);
+        return null;
+      }
+      // Disable startup protection after 2 minutes
+      this.startupProtectionTime = null;
+      console.log('✅ Proteção de inicialização desativada - bot pronto para detectar sinais');
+    }
     
     // Check cooldown period
     if (this.lastAlertTime) {
