@@ -134,5 +134,57 @@ def main():
             print(f"Erro no loop principal: {e}")
             time.sleep(30)
 
+from flask import Flask, request
+import threading
+
+# ============ BOT INTERATIVO ============ #
+URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
+
+app = Flask(__name__)
+
+def analyze_symbol(symbol="BTC/USDT"):
+    try:
+        df = exchange.fetch_ohlcv(symbol, timeframe=TIMEFRAME, limit=200)
+        df = pd.DataFrame(df, columns=['timestamp','open','high','low','close','volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(BRAZIL_TZ)
+        df = calculate_indicators(df)
+
+        last = df.iloc[-2]
+        msg = (f"📊 Análise de {symbol} ({TIMEFRAME})\n"
+               f"💰 Preço: {last['close']:.6f}\n"
+               f"📈 RSI: {last['rsi']:.1f}\n"
+               f"📉 MACD: {last['macd']:.6f} | Signal: {last['macd_signal']:.6f}\n"
+               f"📊 Volume: {last['volume']:.2f} (média {last['vol_ma20']:.2f})\n"
+               f"🕒 {last['timestamp'].strftime('%d/%m/%Y %H:%M:%S')}")
+        return msg
+    except Exception as e:
+        return f"Erro ao analisar {symbol}: {e}"
+
+@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
+def webhook():
+    update = request.get_json()
+    if "message" in update:
+        chat_id = update["message"]["chat"]["id"]
+        text = update["message"].get("text", "")
+
+        if text.startswith("/analise"):
+            parts = text.split()
+            if len(parts) > 1:
+                symbol = parts[1].replace("USDT", "/USDT").upper()
+            else:
+                symbol = "BTC/USDT"
+            msg = analyze_symbol(symbol)
+            requests.post(f"{URL}/sendMessage", data={"chat_id": chat_id, "text": msg})
+
+    return "ok"
+
+# Roda o Flask em paralelo ao loop principal
+def run_flask():
+    app.run(host="0.0.0.0", port=8080)
+
+
 if __name__ == "__main__":
+    # Roda Flask em paralelo
+    threading.Thread(target=run_flask).start()
+    # Roda o loop de sinais automáticos
     main()
