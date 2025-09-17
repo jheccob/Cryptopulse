@@ -1,190 +1,105 @@
-import os
-import ccxt
-import pandas as pd
-import ta
-import time
-from datetime import datetime
-import pytz
-import requests
+import ccxt from "ccxt";
+import TelegramBot from "node-telegram-bot-api";
 
-# ======== CONFIGURAÇÕES ========
-# Recomendo guardar TELEGRAM_TOKEN e CHAT_ID nas Secrets do Replit (ENV)
-TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN", "SEU_TOKEN_AQUI")
-CHAT_ID = os.getenv("CHAT_ID", "SEU_CHAT_ID_AQUI")
+// ===== CONFIGURAÇÕES =====
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || "SEU_TOKEN_AQUI";
+const CHAT_ID = process.env.CHAT_ID || "SEU_CHAT_ID_AQUI";
 
-exchange = ccxt.binance({"enableRateLimit": True})
+const SYMBOL = "XLM/USDT";
+const TIMEFRAME = "5m";
 
-SYMBOL = 'XLM/USDT'
-TIMEFRAME = '5m'
-BRAZIL_TZ = pytz.timezone('America/Sao_Paulo')
+const MACD_FAST = 8;
+const MACD_SLOW = 17;
+const MACD_SIGNAL = 9;
+const RSI_PERIOD = 9;
+const RSI_MIN = 20;
+const RSI_MAX = 80;
+const VOLUME_MA = 20;
 
-# Indicadores / limiares
-MACD_FAST = 8
-MACD_SLOW = 17
-MACD_SIGNAL = 9
-RSI_PERIOD = 9           # solicitado: RSI mais responsivo
-RSI_MIN = 20
-RSI_MAX = 80             # limite superior para não entrar em sobrecompra
-VOLUME_MA = 20
+const exchange = new ccxt.binance({ enableRateLimit: true });
+const bot = new TelegramBot(TELEGRAM_TOKEN, { polling: true });
 
-# Tempo do timeframe em segundos (5m)
-TIMEFRAME_SECONDS = 5 * 60
+// ===== FUNÇÕES =====
+async function getOHLCV(symbol, limit = 200) {
+  const data = await exchange.fetchOHLCV(symbol, TIMEFRAME, undefined, limit);
+  return data.map(([timestamp, open, high, low, close, volume]) => ({
+    timestamp: new Date(timestamp),
+    open,
+    high,
+    low,
+    close,
+    volume,
+  }));
+}
 
-# ======== FUNÇÕES ========
-def get_ohlcv(limit=200):
-    data = exchange.fetch_ohlcv(SYMBOL, timeframe=TIMEFRAME, limit=limit)
-    df = pd.DataFrame(data, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(BRAZIL_TZ)
-    return df
+function calculateIndicators(df) {
+  // Implementação simplificada: só exemplo
+  const closes = df.map(c => c.close);
 
-def calculate_indicators(df):
-    macd = ta.trend.MACD(close=df['close'], window_slow=MACD_SLOW, window_fast=MACD_FAST, window_sign=MACD_SIGNAL)
-    df['macd'] = macd.macd()
-    df['macd_signal'] = macd.macd_signal()
-    df['macd_hist'] = macd.macd_diff()
-    rsi = ta.momentum.RSIIndicator(close=df['close'], window=RSI_PERIOD)
-    df['rsi'] = rsi.rsi()
-    df['vol_ma20'] = df['volume'].rolling(window=VOLUME_MA).mean()
-    return df
+  // RSI (básico)
+  function rsi(values, period = 14) {
+    let gains = 0, losses = 0;
+    for (let i = 1; i <= period; i++) {
+      const diff = values[i] - values[i - 1];
+      if (diff >= 0) gains += diff; else losses -= diff;
+    }
+    const rs = gains / (losses || 1);
+    return 100 - 100 / (1 + rs);
+  }
 
-def send_telegram(message):
-    if not TELEGRAM_TOKEN or TELEGRAM_TOKEN == "SEU_TOKEN_AQUI" or not CHAT_ID or CHAT_ID == "SEU_CHAT_ID_AQUI":
-        print("Telegram não configurado — mensagem não enviada.")
-        return
-    url = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage'
-    data = {'chat_id': CHAT_ID, 'text': message}
-    try:
-        requests.post(url, data=data, timeout=10)
-    except Exception as e:
-        print(f"Erro ao enviar Telegram: {e}")
+  df[df.length - 1].rsi = rsi(closes, RSI_PERIOD);
+  return df;
+}
 
-def check_signal(df):
-    """
-    Usa candles fechados:
-      prev_closed = df.iloc[-3]
-      last_closed = df.iloc[-2]
-    Regras:
-      - MACD cross entre prev_closed e last_closed
-      - RSI entre RSI_MIN e RSI_MAX no last_closed
-      - RSI em tendência (subindo/descendo)
-      - volume do last_closed > vol_ma20
-    """
-    if len(df) < 4:
-        return None
+function checkSignal(df) {
+  const last = df[df.length - 1];
+  if (!last.rsi) return null;
 
-    prev = df.iloc[-3]   # candle fechado anterior
-    last = df.iloc[-2]   # último candle fechado
+  if (last.rsi > RSI_MIN && last.rsi < RSI_MAX) {
+    if (last.rsi > 60) return "COMPRA";
+    if (last.rsi < 40) return "VENDA";
+  }
+  return "NEUTRO";
+}
 
-    needed = ['macd', 'macd_signal', 'rsi', 'vol_ma20']
-    if any(pd.isna(prev.get(c)) or pd.isna(last.get(c)) for c in needed):
-        return None
+// ===== LOOP AUTOMÁTICO =====
+async function autoLoop() {
+  try {
+    const df = await getOHLCV(SYMBOL, 200);
+    const withIndicators = calculateIndicators(df);
+    const signal = checkSignal(withIndicators);
+    if (signal && signal !== "NEUTRO") {
+      const price = withIndicators[withIndicators.length - 1].close;
+      const msg = `🚨 SINAL ${signal}\nPar: ${SYMBOL}\n💰 Preço: ${price}`;
+      bot.sendMessage(CHAT_ID, msg);
+      console.log(msg);
+    }
+  } catch (e) {
+    console.error("Erro no loop:", e.message);
+  }
+}
 
-    macd_cross_up = (prev['macd'] < prev['macd_signal']) and (last['macd'] > last['macd_signal'])
-    macd_cross_down = (prev['macd'] > prev['macd_signal']) and (last['macd'] < last['macd_signal'])
+// roda automático a cada 1 min
+setInterval(autoLoop, 60 * 1000);
 
-    rsi_ok = (RSI_MIN < last['rsi'] < RSI_MAX)
-    rsi_trend_up = last['rsi'] > prev['rsi']
-    rsi_trend_down = last['rsi'] < prev['rsi']
+// ===== COMANDOS MANUAIS =====
+bot.onText(/\/start/, (msg) => {
+  bot.sendMessage(msg.chat.id, "🤖 Olá! Eu sou seu bot de sinais.\n\nUse:\n`/signal BTC/USDT` → analisa uma moeda\n`/status` → mostra o que estou monitorando.");
+});
 
-    vol_ok = last['volume'] > last['vol_ma20']
+bot.onText(/\/status/, (msg) => {
+  bot.sendMessage(msg.chat.id, `Atualmente monitorando: ${SYMBOL} no timeframe ${TIMEFRAME}`);
+});
 
-    if not (rsi_ok and vol_ok):
-        return None
-
-    if macd_cross_up and rsi_trend_up:
-        return 'COMPRA'
-    if macd_cross_down and rsi_trend_down:
-        return 'VENDA'
-    return None
-
-# ======== LOOP PRINCIPAL ========
-def main():
-    print("Bot de alerta iniciado — XLM/USDT 5m (usando candles fechados)")
-    last_alert_candle_time = None
-
-    while True:
-        try:
-            df = get_ohlcv(limit=200)
-            df = calculate_indicators(df)
-            signal = check_signal(df)
-
-            # usar timestamp do candle fechado (índice -2)
-            last_candle_time = df['timestamp'].iloc[-2]
-            prev_candle_time = df['timestamp'].iloc[-3]
-
-            if signal:
-                # somente um alerta por candle fechado
-                if (last_alert_candle_time is None) or ((last_candle_time - last_alert_candle_time).total_seconds() >= TIMEFRAME_SECONDS):
-                    last_rsi = df['rsi'].iloc[-2]
-                    # proteção extra (segurança): evita buy se RSI já estiver > RSI_MAX
-                    if signal == 'COMPRA' and last_rsi > RSI_MAX:
-                        print(f"[{last_candle_time.strftime('%d/%m %H:%M:%S')}] Skip COMPRA — RSI alto ({last_rsi:.1f})")
-                    else:
-                        price = df['close'].iloc[-2]
-                        macd_hist = df['macd_hist'].iloc[-2]
-                        time_str = last_candle_time.strftime('%d/%m/%Y %H:%M:%S')
-                        msg = (f"🚨 SINAL {signal}\nPar: {SYMBOL}\n💰 Preço (close candle): {price:.6f}\n"
-                               f"📊 RSI({RSI_PERIOD}): {last_rsi:.1f}\n📈 MACD_hist: {macd_hist:.6f}\n🕒 Hora: {time_str} (BSB)")
-                        send_telegram(msg)
-                        print(f"[{time_str}] {SYMBOL} - Sinal: {signal} - Preço: {price:.6f} RSI:{last_rsi:.1f} MACD_hist:{macd_hist:.6f}")
-                        last_alert_candle_time = last_candle_time
-                # else: já enviou alerta para esse candle
-            time.sleep(20)  # checa com frequência razoável (não agressiva)
-        except Exception as e:
-            print(f"Erro no loop principal: {e}")
-            time.sleep(30)
-
-from flask import Flask, request
-import threading
-
-# ============ BOT INTERATIVO ============ #
-URL = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}"
-
-app = Flask(__name__)
-
-def analyze_symbol(symbol="BTC/USDT"):
-    try:
-        df = exchange.fetch_ohlcv(symbol, timeframe=TIMEFRAME, limit=200)
-        df = pd.DataFrame(df, columns=['timestamp','open','high','low','close','volume'])
-        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms', utc=True).dt.tz_convert(BRAZIL_TZ)
-        df = calculate_indicators(df)
-
-        last = df.iloc[-2]
-        msg = (f"📊 Análise de {symbol} ({TIMEFRAME})\n"
-               f"💰 Preço: {last['close']:.6f}\n"
-               f"📈 RSI: {last['rsi']:.1f}\n"
-               f"📉 MACD: {last['macd']:.6f} | Signal: {last['macd_signal']:.6f}\n"
-               f"📊 Volume: {last['volume']:.2f} (média {last['vol_ma20']:.2f})\n"
-               f"🕒 {last['timestamp'].strftime('%d/%m/%Y %H:%M:%S')}")
-        return msg
-    except Exception as e:
-        return f"Erro ao analisar {symbol}: {e}"
-
-@app.route(f"/{TELEGRAM_TOKEN}", methods=["POST"])
-def webhook():
-    update = request.get_json()
-    if "message" in update:
-        chat_id = update["message"]["chat"]["id"]
-        text = update["message"].get("text", "")
-
-        if text.startswith("/analise"):
-            parts = text.split()
-            if len(parts) > 1:
-                symbol = parts[1].replace("USDT", "/USDT").upper()
-            else:
-                symbol = "BTC/USDT"
-            msg = analyze_symbol(symbol)
-            requests.post(f"{URL}/sendMessage", data={"chat_id": chat_id, "text": msg})
-
-    return "ok"
-
-# Roda o Flask em paralelo ao loop principal
-def run_flask():
-    app.run(host="0.0.0.0", port=8080)
-
-
-if __name__ == "__main__":
-    # Roda Flask em paralelo
-    threading.Thread(target=run_flask).start()
-    # Roda o loop de sinais automáticos
-    main()
+bot.onText(/\/signal (.+)/, async (msg, match) => {
+  const symbol = match[1].toUpperCase();
+  try {
+    const df = await getOHLCV(symbol, 200);
+    const withIndicators = calculateIndicators(df);
+    const signal = checkSignal(withIndicators);
+    const price = withIndicators[withIndicators.length - 1].close;
+    bot.sendMessage(msg.chat.id, `📊 Análise de ${symbol}\n💰 Preço: ${price}\nSinal: ${signal}`);
+  } catch (e) {
+    bot.sendMessage(msg.chat.id, `Erro ao analisar ${symbol}: ${e.message}`);
+  }
+});
